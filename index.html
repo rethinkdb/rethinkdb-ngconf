@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>reveal.js - Barebones</title>
+
+		<link rel="stylesheet" href="assets/css/reveal.css">
+		<link rel="stylesheet" href="assets/css/theme/moon.css" id="theme">
+		<link rel="stylesheet" href="assets/lib/css/zenburn.css">
+	</head>
+
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+				        <h2>RethinkDB</h2>
+					<p>Building realtime apps with RethinkDB and Angular.</p>
+				</section>
+				<section>
+					<h2>Apps are becoming realtime</h2>
+					<p class="fragment">
+					  <span>Collaborative apps</span><br />
+					  <span>Multiplayer games</span><br />
+					  <span>Realtime marketplaces</span><br />
+					  <span>Streaming analytics</span><br />
+					</p>
+				</section>
+				<section>
+					<h2>Realtime architecture</h2>
+<pre style="border: none; width: 18em;">
++---------------------------+
+| Browser / single page app |
+|         (Angular)         |
++---------------------------+
+              ^
+              |
+  +-----------------------+
+  |      Web Server       |
+  | (Node.js/Python/Ruby) |
+  +-----------------------+
+              ^
+              |
+        +----------+
+        | Database |
+        +----------+
+</pre>
+				</section>
+				<section>
+					<h2>How do you build a realtime app?</h2>
+					<p class="fragment">Node.js + WebSockets + Angular</p>
+					<p class="fragment">What about the data layer?</p>
+				</section>
+				<section>
+					<h2>Pushing data in realtime</h2>
+					<p class="fragment">Database polling &rarr; slow, unscalable</p>
+					<p class="fragment">Message bus &rarr; code duplication, maintenance hell</p>
+					<p class="fragment">Replication log &rarr; hard to scale, lots of custom work</p>
+				</section>
+				<section>
+					<h2>RethinkDB pushes JSON in realtime</h2>
+				</section>
+				<section>
+					<h2>Example: player leaderboard</h2>
+<pre><code>
+r.table('gameplays')
+ .orderBy({ index: r.desc('score') })
+ .limit(3)
+ .run(conn)
+
+[{ player: 'coffeemug', score: 500 },
+ { player: 'kittybot', score: 450 },
+ { player: 'mikeg', score: 410 }]
+</code></pre>
+				</section>
+				<section>
+					<h2>Let's make it realtime!</h2>
+<pre><code>
+r.table('gameplays')
+ .orderBy({ index: r.desc('score') })
+ .limit(3)
+ .changes()  // IMPORTANT
+ .run(conn)
+
+[
+  // initial data,
+  { old_val: { player: 'mikeg', score: 410 },
+    new_val: { player: 'karl', score: 430 }
+  },
+  ...
+]
+</code></pre>
+				</section>
+				<section>
+					<h2>Live demo</h2>
+				</section>
+				<section>
+					<h2>Node.js code</h2>
+<pre><code>// The browser initiates the connection
+socket.on('leaders:changes:start', function(data) {
+
+  // Construct the query
+  query = r.table('gameplays')
+           .orderBy({ index: r.desc('score') })
+           .limit(3)
+           .changes();
+
+  // Send each change to the browser
+  query.run(conn, function(err, cursor) {
+    cursor.each(function(err, change) {
+      socket.emit('leaders:changes', change);
+    });
+  });
+
+});
+</code></pre>
+				</section>
+				<section>
+					<h2>Angular: controller</h2>
+<pre><code>// The bindTable helper integrates with the Node.js code
+var leaders = bindTable('leaders');
+leaders.bind();
+
+// A self-maintaining array of leaders
+leaders.rows;
+
+// Hook it up so the view can see it
+$scope.leaders = leaders.rows;
+</code></pre>
+				</section>
+				<section>
+					<h2>Angular: view</h2>
+<pre><code>
+<... ng-repeat='player in leaders'>
+  {{player.name}}
+  {{player.score}}
+</...>
+</code></pre>
+				</section>
+				<section>
+					<h2>The first database for realtime apps</h2>
+					<p class="fragment">Pushes JSON updates to your app in realtime</p>
+					<p class="fragment">Makes building scalable realtime apps dramatically easier</p>
+				</section>
+				<section>
+					<h2>Download at rethinkdb.com</h2>
+					<p>Over 35,000 developers</p>
+					<p>Second fastest growing DB on GitHub</p>
+					<p>Tweet about us! (@rethinkdb)</p>
+					</p>
+				</section>
+			</div>
+		</div>
+
+		<script src="assets/lib/js/head.min.js"></script>
+		<script src="assets/js/reveal.js"></script>
+		<script>
+			Reveal.initialize({
+			  history: true,
+			  dependencies: [
+			    { src: 'assets/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+			    { src: 'assets/plugin/zoom-js/zoom.js', async: true },
+			  ]
+			});
+		</script>
+	</body>
+</html>
